@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern crate encoding_rs;
+use self::encoding_rs::{ UTF_16LE };
+
 use ::compiler::{
     Cacheable,
     CompilerArguments,
@@ -35,6 +38,7 @@ use std::io::{
     BufWriter,
     Write,
 };
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::{self,Stdio};
 use util::{run_input_output, OsStrExt};
@@ -194,12 +198,13 @@ enum MSVCArgAttribute {
     DepFile,
     ProgramDatabase,
     DebugInfo,
+    ResponseFile,
 }
 
 use self::MSVCArgAttribute::*;
 
 static ARGS: [(ArgInfo, MSVCArgAttribute); 20] = [
-    take_arg!("-D", String, Concatenated, PreprocessorArgument),
+    take_arg!("-D", String, CanBeSeparated, PreprocessorArgument),
     take_arg!("-FA", String, Concatenated, TooHard),
     take_arg!("-FI", Path, CanBeSeparated, PreprocessorArgument),
     take_arg!("-FR", Path, Concatenated, TooHard),
@@ -218,12 +223,12 @@ static ARGS: [(ArgInfo, MSVCArgAttribute); 20] = [
     flag!("-c", DoCompilation),
     take_arg!("-deps", Path, Concatenated, DepFile),
     flag!("-showIncludes", ShowIncludes),
-    take_arg!("@", Path, Concatenated, TooHard),
+    take_arg!("@", Path, Concatenated, ResponseFile),
 ];
 
-pub fn parse_arguments(arguments: &[OsString]) -> CompilerArguments<ParsedArguments> {
+pub fn parse_arguments(arguments: &[OsString]) -> CompilerArguments<Vec<ParsedArguments>> {
     let mut output_arg = None;
-    let mut input_arg = None;
+    let mut input_args = vec!();
     let mut common_args = vec!();
     let mut compilation = false;
     let mut debug_info = false;
@@ -265,15 +270,30 @@ pub fn parse_arguments(arguments: &[OsString]) -> CompilerArguments<ParsedArgume
             Some(ProgramDatabase) => pdb = item.arg.get_value().map(|s| s.unwrap_path()),
             Some(DebugInfo) => debug_info = true,
             Some(PreprocessorArgument) => {}
+            Some(ResponseFile) => {
+                let rsp_path = item.arg.get_value().map(|s| s.unwrap_path()).unwrap();
+                let mut rsp_file = File::open(&rsp_path).expect("Could not open RSP file.");
+                let mut rsp_content = Vec::new();
+                rsp_file.read_to_end(&mut rsp_content).expect("Could not read RSP file.");
+
+                debug!("RSP {:?}:", rsp_path);
+
+                let ( rsp_str, _, _ ) = UTF_16LE.decode(&rsp_content);
+
+                debug!("\n{:}\n", rsp_str);
+
+                let args_vec = split_and_unescape(&rsp_str);
+                let args = args_vec.iter()
+                    .map(|arg| OsString::from(arg))
+                    .collect::<Vec<OsString>>();
+
+                debug!("{:?}", args);
+
+                return parse_arguments(&args);
+            }
             None => {
                 match item.arg {
-                    Argument::Raw(ref val) => {
-                        if input_arg.is_some() {
-                            // Can't cache compilations with multiple inputs.
-                            return CompilerArguments::CannotCache("multiple input files");
-                        }
-                        input_arg = Some(val.clone());
-                    }
+                    Argument::Raw(ref val) => input_args.push(val.clone()),
                     Argument::UnknownFlag(ref flag) => common_args.push(flag.clone()),
                     _ => unreachable!(),
                 }
@@ -301,15 +321,21 @@ pub fn parse_arguments(arguments: &[OsString]) -> CompilerArguments<ParsedArgume
         None => return CompilerArguments::CannotCache("no input file"),
     };
     let mut outputs = HashMap::new();
-    match output_arg {
+    let obj_path = match output_arg {
         // If output file name is not given, use default naming rule
-        None => {
-            outputs.insert("obj", Path::new(&input).with_extension("obj"));
+        None => Path::new(&input).with_extension("obj"),
+        Some(output_val) => {
+            let mut path = PathBuf::from(&output_val);
+            let output_str = output_val.into_string().unwrap();
+            if output_str.ends_with("\\") {
+                let mut output_path = PathBuf::from(&input).with_extension("obj");
+                let output_file_name = output_path.file_name().unwrap();
+                path.push(output_file_name);
+            }
+            path
         },
-        Some(o) => {
-            outputs.insert("obj", PathBuf::from(o));
-        },
-    }
+    };
+    outputs.insert("obj", obj_path);
     // -Fd is not taken into account unless -Zi is given
     if debug_info {
         match pdb {
@@ -332,6 +358,36 @@ pub fn parse_arguments(arguments: &[OsString]) -> CompilerArguments<ParsedArgume
         msvc_show_includes: show_includes,
         profile_generate: false,
     })
+}
+
+
+fn split_and_unescape(s: &str) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut arg = String::new();
+    let mut chars = s.chars();
+    let mut in_quotes = false;
+    while let Some(ch) = chars.next() {
+        match ch {
+            '"' => in_quotes = !in_quotes,
+            '\\' if in_quotes => match chars.next() {
+                Some('\\') | None => arg.push('\\'),
+                Some('"') => arg.push('"'),
+                Some(ch2) => {
+                    arg.push('\\');
+                    arg.push(ch2);
+                },
+            },
+            ' ' if !in_quotes => {
+                    args.push(arg);
+                    arg = String::new();
+            }
+            _ => arg.push(ch),
+        }
+    }
+    if !arg.is_empty() {
+        args.push(arg);
+    }
+    args
 }
 
 #[cfg(windows)]
@@ -467,6 +523,7 @@ fn compile<T>(creator: &T,
         }
     };
 
+    /*
     // See if this compilation will produce a PDB.
     let cacheable = parsed_args.outputs.get("pdb")
         .map_or(Cacheable::Yes, |pdb| {
@@ -478,6 +535,9 @@ fn compile<T>(creator: &T,
                 Cacheable::Yes
             }
         });
+    */
+    // Do CMake projects remove PDB file before compilation?
+    let cacheable = Cacheable::Yes;
 
     let mut fo = OsString::from("-Fo");
     fo.push(&out_file);

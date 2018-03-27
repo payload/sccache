@@ -233,6 +233,7 @@ pub trait CompilerHasher<T>: fmt::Debug + Send + 'static
                     let write = pool.spawn_fn(move || -> Result<_> {
                         let mut entry = CacheWrite::new();
                         for (key, path) in &outputs {
+                            debug!("XXX {:?} {:?}", key, path);
                             let mut f = File::open(&path)?;
                             let mode = get_file_mode(&path)?;
                             entry.put_object(key, &mut f, mode).chain_err(|| {
