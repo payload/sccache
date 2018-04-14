@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use compiler::{Cacheable, ColorMode, Compiler, CompilerArguments, CompilerHasher, CompilerKind,
-               Compilation, HashResult};
+               Compilation, HashResult, MyCompilerReject, MyCompilerResponse};
 use futures::Future;
 use futures_cpupool::CpuPool;
 use mock_command::CommandCreatorSync;
@@ -24,6 +24,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::process;
+use std::result::Result;
 use util::{HashToDigest, Digest};
 
 use errors::*;
@@ -156,6 +157,13 @@ pub trait CCompilerImpl: Clone + fmt::Debug + Send + 'static {
                   env_vars: &[(OsString, OsString)])
                   -> SFuture<(Cacheable, process::Output)>
         where T: CommandCreatorSync;
+    
+    fn my_get_tasks(&self,
+                          _arguments: &[OsString],
+                          _cwd: &Path)
+                          -> Result<MyCompilerResponse, MyCompilerReject> {
+        unimplemented!();
+    }
 }
 
 impl <I> CCompiler<I>
@@ -194,6 +202,13 @@ impl<T: CommandCreatorSync, I: CCompilerImpl> Compiler<T> for CCompiler<I> {
 
     fn box_clone(&self) -> Box<Compiler<T>> {
         Box::new((*self).clone())
+    }
+
+    fn my_get_tasks(&self,
+                          arguments: &[OsString],
+                          cwd: &Path)
+                          -> Result<MyCompilerResponse, MyCompilerReject> {
+        self.compiler.my_get_tasks(arguments, cwd)
     }
 }
 

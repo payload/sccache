@@ -503,6 +503,9 @@ impl<C> SccacheService<C>
             }
             Some(c) => {
                 debug!("check_compiler: Supported compiler");
+                let res = c.my_get_tasks(&cmd, &cwd);
+                debug!("XXX done {:?}", res);
+                /*
                 // Now check that we can handle this compiler with
                 // the provided commandline.
                 match c.parse_arguments(&cmd, &cwd) {
@@ -524,6 +527,7 @@ impl<C> SccacheService<C>
                         stats.requests_not_compile += 1;
                     }
                 }
+                */
             }
         }
 

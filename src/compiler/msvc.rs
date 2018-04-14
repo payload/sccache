@@ -17,9 +17,12 @@ use self::encoding_rs::{ UTF_16LE };
 
 use ::compiler::{
     Cacheable,
+    MyCompilerReject,
+    MyCompilerResponse,
     CompilerArguments,
     write_temp_file,
 };
+use compiler::msvc_support::{ ReadArgs };
 use compiler::args::*;
 use compiler::c::{CCompilerImpl, CCompilerKind, Language, ParsedArguments};
 use local_encoding::{Encoding, Encoder};
@@ -42,6 +45,7 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::{self,Stdio};
 use util::{run_input_output, OsStrExt};
+use std::result;
 
 use errors::*;
 
@@ -84,6 +88,21 @@ impl CCompilerImpl for MSVC {
         where T: CommandCreatorSync
     {
         compile(creator, executable, parsed_args, cwd, env_vars)
+    }
+
+    fn my_get_tasks(&self,
+                          arguments: &[OsString],
+                          _cwd: &Path)
+                          -> result::Result<MyCompilerResponse, MyCompilerReject> {
+        debug!("my_get_tasks");
+        let mut read_args = ReadArgs::new();
+        read_args.read_cli_args(arguments);
+        let calls = read_args.create_cli_calls();
+        debug!("{:?}", read_args);
+        debug!("{:#?}", calls);
+        Ok(MyCompilerResponse {
+            tasks: calls.compiler_calls,
+        })
     }
 }
 
@@ -226,9 +245,9 @@ static ARGS: [(ArgInfo, MSVCArgAttribute); 20] = [
     take_arg!("@", Path, Concatenated, ResponseFile),
 ];
 
-pub fn parse_arguments(arguments: &[OsString]) -> CompilerArguments<Vec<ParsedArguments>> {
+pub fn parse_arguments(arguments: &[OsString]) -> CompilerArguments<ParsedArguments> {
     let mut output_arg = None;
-    let mut input_args = vec!();
+    let mut input_arg = None;
     let mut common_args = vec!();
     let mut compilation = false;
     let mut debug_info = false;
@@ -293,7 +312,7 @@ pub fn parse_arguments(arguments: &[OsString]) -> CompilerArguments<Vec<ParsedAr
             }
             None => {
                 match item.arg {
-                    Argument::Raw(ref val) => input_args.push(val.clone()),
+                    Argument::Raw(ref val) => input_arg = Some(val.clone()),
                     Argument::UnknownFlag(ref flag) => common_args.push(flag.clone()),
                     _ => unreachable!(),
                 }

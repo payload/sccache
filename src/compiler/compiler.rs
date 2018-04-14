@@ -43,6 +43,7 @@ use std::path::{Path, PathBuf};
 use std::process::{self,Stdio};
 use std::str;
 use std::sync::Arc;
+use std::result;
 use std::time::{
     Duration,
     Instant,
@@ -63,6 +64,17 @@ pub enum CompilerKind {
     Rust,
 }
 
+#[derive(Debug)]
+pub struct MyCompilerResponse {
+    pub tasks: Vec<Vec<OsString>>
+}
+
+#[derive(Debug)]
+pub enum MyCompilerReject {
+    CantCache,
+    NotCompilation
+}
+
 /// An interface to a compiler for argument parsing.
 pub trait Compiler<T>: Send + 'static
     where T: CommandCreatorSync,
@@ -74,6 +86,13 @@ pub trait Compiler<T>: Send + 'static
                        arguments: &[OsString],
                        cwd: &Path) -> CompilerArguments<Box<CompilerHasher<T> + 'static>>;
     fn box_clone(&self) -> Box<Compiler<T>>;
+
+    fn my_get_tasks(&self,
+                          _arguments: &[OsString],
+                          _cwd: &Path)
+                          -> result::Result<MyCompilerResponse, MyCompilerReject> {
+        unimplemented!();
+    }
 }
 
 impl<T: CommandCreatorSync> Clone for Box<Compiler<T>> {

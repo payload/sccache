@@ -18,6 +18,7 @@ mod c;
 mod clang;
 mod compiler;
 mod gcc;
+mod msvc_support;
 mod msvc;
 mod rust;
 
