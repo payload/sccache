@@ -526,17 +526,19 @@ impl<C> SccacheService<C>
                 let res = CompileResponse::CompileStarted;
                 Message::WithBody(Response::Compile(res), rx)
             }
-            CompilerArguments::CannotCache(why) => {
-                debug!("parse_arguments: CannotCache({}): {:?}", why, compile.args);
-                self.stats_request_not_cacheable();
-                Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
-            }
+            CompilerArguments::CannotCache(why) => self.on_cannot_cache(why, compile),
             CompilerArguments::NotCompilation => {
                 debug!("parse_arguments: NotCompilation: {:?}", compile.args);
                 self.stats_request_not_compile();
                 Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
             }
         }
+    }
+
+    fn on_cannot_cache(&self, why: &str, compile: &Compile) -> SccacheResponse {
+        debug!("parse_arguments: CannotCache({}): {:?}", why, compile.args);
+        self.stats_request_not_cacheable();
+        Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
     }
 
     /// Given compiler arguments `arguments`, look up
