@@ -441,7 +441,10 @@ impl<C> SccacheService<C>
     {
         let me = self.clone();
         Box::new(self.compiler_info(compile.exe.clone(), &compile.env_vars)
-            .map(move |info| me.check_compiler(info, &compile))
+            .map(move |compiler_opt| match compiler_opt {
+                None => me.on_unsupported_compiler(),
+                Some(compiler) => me.on_supported_compiler(compiler, &compile),
+            })
         )
     }
 
@@ -508,18 +511,6 @@ impl<C> SccacheService<C>
         debug!("check_compiler: Unsupported compiler");
         self.stats_request_unsupported_compiler();
         Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
-    }
-
-    /// Check that we can handle and cache `cmd` when run with `compiler`.
-    /// If so, run `start_compile_task` to execute it.
-    fn check_compiler(&self,
-                      compiler_opt: Option<Box<Compiler<C>>>,
-                      compile: &Compile) -> SccacheResponse
-    {   
-        match compiler_opt {
-            None => self.on_unsupported_compiler(),
-            Some(compiler) => self.on_supported_compiler(compiler, compile),
-        }
     }
 
     fn on_supported_compiler(&self, compiler: Box<Compiler<C>>, compile: &Compile) -> SccacheResponse {
