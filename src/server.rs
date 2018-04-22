@@ -544,6 +544,20 @@ impl<C> SccacheService<C>
         Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
     }
 
+    fn on_process_error(&self, output: Output) -> CompileFinished {
+        debug!("Compilation failed: {:?}", output);
+        let mut stats = self.stats.borrow_mut();
+        stats.compile_fails += 1;
+        let mut res = CompileFinished::default();
+        match output.status.code() {
+            Some(code) => res.retcode = Some(code),
+            None => res.signal = Some(get_signal(output.status)),
+        };
+        res.stdout = output.stdout;
+        res.stderr = output.stderr;
+        return res
+    }
+
     /// Given compiler arguments `arguments`, look up
     /// a compile result in the cache or execute the compilation and store
     /// the result in the cache.
@@ -617,16 +631,7 @@ impl<C> SccacheService<C>
                     res.stdout = stdout;
                     res.stderr = stderr;
                 }
-                Err(Error(ErrorKind::ProcessError(output), _)) => {
-                    debug!("Compilation failed: {:?}", output);
-                    stats.compile_fails += 1;
-                    match output.status.code() {
-                        Some(code) => res.retcode = Some(code),
-                        None => res.signal = Some(get_signal(output.status)),
-                    };
-                    res.stdout = output.stdout;
-                    res.stderr = output.stderr;
-                }
+                Err(Error(ErrorKind::ProcessError(output), _)) => res = me.on_process_error(output),
                 Err(err) => {
                     use std::fmt::Write;
 
