@@ -500,6 +500,7 @@ impl<C> SccacheService<C>
             None => {
                 debug!("check_compiler: Unsupported compiler");
                 stats.requests_unsupported_compiler += 1;
+                Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
             }
             Some(c) => {
                 debug!("check_compiler: Supported compiler");
@@ -512,23 +513,22 @@ impl<C> SccacheService<C>
                         let (tx, rx) = Body::pair();
                         self.start_compile_task(hasher, cmd, cwd, env_vars, tx);
                         let res = CompileResponse::CompileStarted;
-                        return Message::WithBody(Response::Compile(res), rx)
+                        Message::WithBody(Response::Compile(res), rx)
                     }
                     CompilerArguments::CannotCache(why) => {
                         //TODO: save counts of why
                         debug!("parse_arguments: CannotCache({}): {:?}", why, cmd);
                         stats.requests_not_cacheable += 1;
+                        Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
                     }
                     CompilerArguments::NotCompilation => {
                         debug!("parse_arguments: NotCompilation: {:?}", cmd);
                         stats.requests_not_compile += 1;
+                        Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
                     }
                 }
             }
         }
-
-        let res = CompileResponse::UnhandledCompile;
-        Message::WithoutBody(Response::Compile(res))
     }
 
     /// Given compiler arguments `arguments`, look up
