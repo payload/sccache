@@ -1,5 +1,6 @@
 use compiler::ColorMode;
 use std::ffi::OsString;
+use std::path::PathBuf;
 use server::ServerInfo;
 
 /// A client request.
@@ -56,9 +57,9 @@ pub struct CompileFinished {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Compile {
     /// The full path to the compiler executable.
-    pub exe: OsString,
+    pub exe: PathBuf,
     /// The current working directory in which to execute the compile.
-    pub cwd: OsString,
+    pub cwd: PathBuf,
     /// The commandline arguments passed to the compiler.
     pub args: Vec<OsString>,
     /// The environment variables present when the compiler was executed, as (var, val).

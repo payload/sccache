@@ -439,14 +439,10 @@ impl<C> SccacheService<C>
     fn handle_compile(&self, compile: Compile)
                       -> SFuture<SccacheResponse>
     {
-        let exe = compile.exe;
-        let cmd = compile.args;
-        let cwd = compile.cwd;
-        let env_vars = compile.env_vars;
         let me = self.clone();
-        Box::new(self.compiler_info(exe.into(), &env_vars).map(move |info| {
-            me.check_compiler(info, cmd, cwd.into(), env_vars)
-        }))
+        Box::new(self.compiler_info(compile.exe.clone(), &compile.env_vars)
+            .map(move |info| me.check_compiler(info, &compile))
+        )
     }
 
     /// Look up compiler info from the cache for the compiler `path`.
@@ -517,37 +513,37 @@ impl<C> SccacheService<C>
     /// Check that we can handle and cache `cmd` when run with `compiler`.
     /// If so, run `start_compile_task` to execute it.
     fn check_compiler(&self,
-                      compiler: Option<Box<Compiler<C>>>,
-                      cmd: Vec<OsString>,
-                      cwd: PathBuf,
-                      env_vars: Vec<(OsString, OsString)>) -> SccacheResponse
+                      compiler_opt: Option<Box<Compiler<C>>>,
+                      compile: &Compile) -> SccacheResponse
     {   
-        match compiler {
+        match compiler_opt {
             None => self.on_unsupported_compiler(),
-            Some(c) => {
-                debug!("check_compiler: Supported compiler");
-                // Now check that we can handle this compiler with
-                // the provided commandline.
-                match c.parse_arguments(&cmd, &cwd) {
-                    CompilerArguments::Ok(hasher) => {
-                        debug!("parse_arguments: Ok: {:?}", cmd);
-                        self.stats_request_executed();
-                        let (tx, rx) = Body::pair();
-                        self.start_compile_task(hasher, cmd, cwd, env_vars, tx);
-                        let res = CompileResponse::CompileStarted;
-                        Message::WithBody(Response::Compile(res), rx)
-                    }
-                    CompilerArguments::CannotCache(why) => {
-                        debug!("parse_arguments: CannotCache({}): {:?}", why, cmd);
-                        self.stats_request_not_cacheable();
-                        Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
-                    }
-                    CompilerArguments::NotCompilation => {
-                        debug!("parse_arguments: NotCompilation: {:?}", cmd);
-                        self.stats_request_not_compile();
-                        Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
-                    }
-                }
+            Some(compiler) => self.on_supported_compiler(compiler, compile),
+        }
+    }
+
+    fn on_supported_compiler(&self, compiler: Box<Compiler<C>>, compile: &Compile) -> SccacheResponse {
+        debug!("check_compiler: Supported compiler");
+        // Now check that we can handle this compiler with
+        // the provided commandline.
+        match compiler.parse_arguments(&compile.args, &compile.cwd) {
+            CompilerArguments::Ok(hasher) => {
+                debug!("parse_arguments: Ok: {:?}", compile.args);
+                self.stats_request_executed();
+                let (tx, rx) = Body::pair();
+                self.start_compile_task(hasher, compile, tx);
+                let res = CompileResponse::CompileStarted;
+                Message::WithBody(Response::Compile(res), rx)
+            }
+            CompilerArguments::CannotCache(why) => {
+                debug!("parse_arguments: CannotCache({}): {:?}", why, compile.args);
+                self.stats_request_not_cacheable();
+                Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
+            }
+            CompilerArguments::NotCompilation => {
+                debug!("parse_arguments: NotCompilation: {:?}", compile.args);
+                self.stats_request_not_compile();
+                Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
             }
         }
     }
@@ -557,11 +553,9 @@ impl<C> SccacheService<C>
     /// the result in the cache.
     fn start_compile_task(&self,
                           hasher: Box<CompilerHasher<C>>,
-                          arguments: Vec<OsString>,
-                          cwd: PathBuf,
-                          env_vars: Vec<(OsString, OsString)>,
+                          compile: &Compile,
                           tx: mpsc::Sender<Result<Response>>) {
-        let force_recache = env_vars.iter().any(|&(ref k, ref _v)| {
+        let force_recache = compile.env_vars.iter().any(|&(ref k, ref _v)| {
             k.as_os_str() == OsStr::new("SCCACHE_RECACHE")
         });
         let cache_control = if force_recache {
@@ -573,9 +567,9 @@ impl<C> SccacheService<C>
         let color_mode = hasher.color_mode();
         let result = hasher.get_cached_or_compile(self.creator.clone(),
                                                   self.storage.clone(),
-                                                  arguments,
-                                                  cwd,
-                                                  env_vars,
+                                                  compile.args.clone(),
+                                                  compile.cwd.clone(),
+                                                  compile.env_vars.clone(),
                                                   cache_control,
                                                   self.pool.clone(),
                                                   self.handle.clone());
