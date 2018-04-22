@@ -518,17 +518,18 @@ impl<C> SccacheService<C>
         // Now check that we can handle this compiler with
         // the provided commandline.
         match compiler.parse_arguments(&compile.args, &compile.cwd) {
-            CompilerArguments::Ok(hasher) => {
-                debug!("parse_arguments: Ok: {:?}", compile.args);
-                self.stats_request_executed();
-                let (tx, rx) = Body::pair();
-                self.start_compile_task(hasher, compile, tx);
-                let res = CompileResponse::CompileStarted;
-                Message::WithBody(Response::Compile(res), rx)
-            }
+            CompilerArguments::Ok(hasher) => self.on_compilation_ok(hasher, compile),
             CompilerArguments::CannotCache(why) => self.on_cannot_cache(why, compile),
             CompilerArguments::NotCompilation => self.on_not_compilation(compile),
         }
+    }
+
+    fn on_compilation_ok(&self, hasher: Box<CompilerHasher<C>>, compile: &Compile) -> SccacheResponse {
+        debug!("parse_arguments: Ok: {:?}", compile.args);
+        self.stats_request_executed();
+        let (tx, rx) = Body::pair();
+        self.start_compile_task(hasher, compile, tx);
+        Message::WithBody(Response::Compile(CompileResponse::CompileStarted), rx)
     }
 
     fn on_cannot_cache(&self, why: &str, compile: &Compile) -> SccacheResponse {
