@@ -563,9 +563,7 @@ impl<C> SccacheService<C>
         let color_mode = hasher.color_mode();
         let result = hasher.get_cached_or_compile(self.creator.clone(),
                                                   self.storage.clone(),
-                                                  compile.args.clone(),
-                                                  compile.cwd.clone(),
-                                                  compile.env_vars.clone(),
+                                                  compile.clone(),
                                                   cache_control,
                                                   self.pool.clone(),
                                                   self.handle.clone());

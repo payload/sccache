@@ -54,7 +54,7 @@ pub struct CompileFinished {
 }
 
 /// The contents of a compile request from a client.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Compile {
     /// The full path to the compiler executable.
     pub exe: PathBuf,

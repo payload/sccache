@@ -31,6 +31,7 @@ use mock_command::{
     RunCommand,
     exit_status,
 };
+use protocol::Compile;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -103,18 +104,16 @@ pub trait CompilerHasher<T>: fmt::Debug + Send + 'static
     fn get_cached_or_compile(self: Box<Self>,
                              creator: T,
                              storage: Arc<Storage>,
-                             arguments: Vec<OsString>,
-                             cwd: PathBuf,
-                             env_vars: Vec<(OsString, OsString)>,
+                             compile: Compile,
                              cache_control: CacheControl,
                              pool: CpuPool,
                              handle: Handle)
                              -> SFuture<(CompileResult, process::Output)>
     {
         let out_pretty = self.output_pretty().into_owned();
-        debug!("[{}]: get_cached_or_compile: {:?}", out_pretty, arguments);
+        debug!("[{}]: get_cached_or_compile: {:?}", out_pretty, compile.args);
         let start = Instant::now();
-        let result = self.generate_hash_key(&creator, &cwd, &env_vars, &pool);
+        let result = self.generate_hash_key(&creator, &compile.cwd, &compile.env_vars, &pool);
         Box::new(result.then(move |res| -> SFuture<_> {
             debug!("[{}]: generate_hash_key took {}", out_pretty, fmt_duration_as_secs(&start.elapsed()));
             let (key, compilation) = match res {
@@ -150,7 +149,7 @@ pub trait CompilerHasher<T>: fmt::Debug + Send + 'static
             // Check the result of the cache lookup.
             Box::new(cache_status.then(move |result| {
                 let duration = start.elapsed();
-                let pwd = Path::new(&cwd);
+                let pwd = Path::new(&compile.cwd);
                 let outputs = compilation.outputs()
                     .map(|(key, path)| (key.to_string(), pwd.join(path)))
                     .collect::<HashMap<_, _>>();
@@ -214,7 +213,7 @@ pub trait CompilerHasher<T>: fmt::Debug + Send + 'static
                 // Cache miss, so compile it.
                 let start = Instant::now();
                 let out_pretty = out_pretty.clone();
-                let compile = compilation.compile(&creator, &cwd, &env_vars);
+                let compile = compilation.compile(&creator, &compile.cwd, &compile.env_vars);
                 Box::new(compile.and_then(move |(cacheable, compiler_result)| {
                     let duration = start.elapsed();
                     if !compiler_result.status.success() {
@@ -756,18 +755,20 @@ mod test {
             f.write_all(b"file contents")?;
             Ok(MockChild::new(exit_status(0), COMPILER_STDOUT, COMPILER_STDERR))
         });
-        let cwd = f.tempdir.path();
-        let arguments = ovec!["-c", "foo.c", "-o", "foo.o"];
-        let hasher = match c.parse_arguments(&arguments, ".".as_ref()) {
+        let compile = Compile {
+            exe: PathBuf::new(),
+            cwd: f.tempdir.path().to_path_buf(),
+            args: ovec!["-c", "foo.c", "-o", "foo.o"],
+            env_vars: vec![],
+        };
+        let hasher = match c.parse_arguments(&compile.args, ".".as_ref()) {
             CompilerArguments::Ok(h) => h,
             o @ _ => panic!("Bad result from parse_arguments: {:?}", o),
         };
         let hasher2 = hasher.clone();
         let (cached, res) = hasher.get_cached_or_compile(creator.clone(),
                                                          storage.clone(),
-                                                         arguments.clone(),
-                                                         cwd.to_path_buf(),
-                                                         vec![],
+                                                         compile.clone(),
                                                          CacheControl::Default,
                                                          pool.clone(),
                                                          handle.clone()).wait().unwrap();
@@ -790,9 +791,7 @@ mod test {
         // There should be no actual compiler invocation.
         let (cached, res) = hasher2.get_cached_or_compile(creator.clone(),
                                                           storage.clone(),
-                                                          arguments,
-                                                          cwd.to_path_buf(),
-                                                          vec![],
+                                                          compile.clone(),
                                                           CacheControl::Default,
                                                           pool.clone(),
                                                           handle).wait().unwrap();
@@ -836,18 +835,20 @@ mod test {
             f.write_all(b"file contents")?;
             Ok(MockChild::new(exit_status(0), COMPILER_STDOUT, COMPILER_STDERR))
         });
-        let cwd = f.tempdir.path();
-        let arguments = ovec!["-c", "foo.c", "-o", "foo.o"];
-        let hasher = match c.parse_arguments(&arguments, ".".as_ref()) {
+        let compile = Compile {
+            exe: PathBuf::new(),
+            cwd: f.tempdir.path().to_path_buf(),
+            args: ovec!["-c", "foo.c", "-o", "foo.o"],
+            env_vars: vec![],
+        };
+        let hasher = match c.parse_arguments(&compile.args, ".".as_ref()) {
             CompilerArguments::Ok(h) => h,
             o @ _ => panic!("Bad result from parse_arguments: {:?}", o),
         };
         let hasher2 = hasher.clone();
         let (cached, res) = hasher.get_cached_or_compile(creator.clone(),
                                                          storage.clone(),
-                                                         arguments.clone(),
-                                                         cwd.to_path_buf(),
-                                                         vec![],
+                                                         compile.clone(),
                                                          CacheControl::Default,
                                                          pool.clone(),
                                                          handle.clone()).wait().unwrap();
@@ -871,9 +872,7 @@ mod test {
         // There should be no actual compiler invocation.
         let (cached, res) = hasher2.get_cached_or_compile(creator,
                                                           storage,
-                                                          arguments,
-                                                          cwd.to_path_buf(),
-                                                          vec![],
+                                                          compile.clone(),
                                                           CacheControl::Default,
                                                           pool,
                                                           handle).wait().unwrap();
@@ -917,9 +916,13 @@ mod test {
             f.write_all(b"file contents")?;
             Ok(MockChild::new(exit_status(0), COMPILER_STDOUT, COMPILER_STDERR))
         });
-        let cwd = f.tempdir.path();
-        let arguments = ovec!["-c", "foo.c", "-o", "foo.o"];
-        let hasher = match c.parse_arguments(&arguments, ".".as_ref()) {
+        let compile = Compile {
+            exe: PathBuf::new(),
+            cwd: f.tempdir.path().to_path_buf(),
+            args: ovec!["-c", "foo.c", "-o", "foo.o"],
+            env_vars: vec![],
+        };
+        let hasher = match c.parse_arguments(&compile.args, ".".as_ref()) {
             CompilerArguments::Ok(h) => h,
             o @ _ => panic!("Bad result from parse_arguments: {:?}", o),
         };
@@ -927,9 +930,7 @@ mod test {
         storage.next_get(f_err("Some Error"));
         let (cached, res) = hasher.get_cached_or_compile(creator.clone(),
                                                          storage.clone(),
-                                                         arguments.clone(),
-                                                         cwd.to_path_buf(),
-                                                         vec![],
+                                                         compile.clone(),
                                                          CacheControl::Default,
                                                          pool.clone(),
                                                          handle.clone()).wait().unwrap();
@@ -984,18 +985,20 @@ mod test {
                 Ok(MockChild::new(exit_status(0), COMPILER_STDOUT, COMPILER_STDERR))
             });
         }
-        let cwd = f.tempdir.path();
-        let arguments = ovec!["-c", "foo.c", "-o", "foo.o"];
-        let hasher = match c.parse_arguments(&arguments, ".".as_ref()) {
+        let compile = Compile {
+            exe: PathBuf::new(),
+            cwd: f.tempdir.path().to_path_buf(),
+            args: ovec!["-c", "foo.c", "-o", "foo.o"],
+            env_vars: vec![],
+        };
+        let hasher = match c.parse_arguments(&compile.args, ".".as_ref()) {
             CompilerArguments::Ok(h) => h,
             o @ _ => panic!("Bad result from parse_arguments: {:?}", o),
         };
         let hasher2 = hasher.clone();
         let (cached, res) = hasher.get_cached_or_compile(creator.clone(),
                                                          storage.clone(),
-                                                         arguments.clone(),
-                                                         cwd.to_path_buf(),
-                                                         vec![],
+                                                         compile.clone(),
                                                          CacheControl::Default,
                                                          pool.clone(),
                                                          handle.clone()).wait().unwrap();
@@ -1015,9 +1018,7 @@ mod test {
         fs::remove_file(&obj).unwrap();
         let (cached, res) = hasher2.get_cached_or_compile(creator,
                                                           storage,
-                                                          arguments,
-                                                          cwd.to_path_buf(),
-                                                          vec![],
+                                                          compile.clone(),
                                                           CacheControl::ForceRecache,
                                                           pool,
                                                           handle).wait().unwrap();
@@ -1057,17 +1058,19 @@ mod test {
         // The preprocessor invocation.
         const PREPROCESSOR_STDERR: &'static [u8] = b"something went wrong";
         next_command(&creator, Ok(MockChild::new(exit_status(1), b"preprocessor output", PREPROCESSOR_STDERR)));
-        let cwd = f.tempdir.path();
-        let arguments = ovec!["-c", "foo.c", "-o", "foo.o"];
-        let hasher = match c.parse_arguments(&arguments, ".".as_ref()) {
+        let compile = Compile {
+            exe: PathBuf::new(),
+            cwd: f.tempdir.path().to_path_buf(),
+            args: ovec!["-c", "foo.c", "-o", "foo.o"],
+            env_vars: vec![],
+        };
+        let hasher = match c.parse_arguments(&compile.args, ".".as_ref()) {
             CompilerArguments::Ok(h) => h,
             o @ _ => panic!("Bad result from parse_arguments: {:?}", o),
         };
         let (cached, res) = hasher.get_cached_or_compile(creator,
                                                          storage,
-                                                         arguments,
-                                                         cwd.to_path_buf(),
-                                                         vec![],
+                                                         compile.clone(),
                                                          CacheControl::Default,
                                                          pool,
                                                          handle).wait().unwrap();
