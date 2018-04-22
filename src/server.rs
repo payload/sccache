@@ -508,6 +508,12 @@ impl<C> SccacheService<C>
         stats.requests_not_compile += 1;
     }
 
+    fn on_unsupported_compiler(&self) -> SccacheResponse {
+        debug!("check_compiler: Unsupported compiler");
+        self.stats_request_unsupported_compiler();
+        Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
+    }
+
     /// Check that we can handle and cache `cmd` when run with `compiler`.
     /// If so, run `start_compile_task` to execute it.
     fn check_compiler(&self,
@@ -517,11 +523,7 @@ impl<C> SccacheService<C>
                       env_vars: Vec<(OsString, OsString)>) -> SccacheResponse
     {   
         match compiler {
-            None => {
-                debug!("check_compiler: Unsupported compiler");
-                self.stats_request_unsupported_compiler();
-                Message::WithoutBody(Response::Compile(CompileResponse::UnhandledCompile))
-            }
+            None => self.on_unsupported_compiler(),
             Some(c) => {
                 debug!("check_compiler: Supported compiler");
                 // Now check that we can handle this compiler with
