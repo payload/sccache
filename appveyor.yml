@@ -9,19 +9,16 @@ matrix:
     - channel: nightly
 
 install:
-#- appveyor-retry appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
-#- rustup-init.exe -y --default-host %target% --default-toolchain %channel%
-#- set PATH=C:\Users\appveyor\.cargo\bin;%PATH%
-#- rustc -V
-#- cargo -V
+- appveyor-retry appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+- rustup-init.exe -y --default-host %target% --default-toolchain %channel%
+- set PATH=C:\Users\appveyor\.cargo\bin;%PATH%
+- rustc -V
+- cargo -V
 #
 - cmake --version
 #
 - ninja --version || choco install ninja
 #
-- dir "C:\Program Files (x86)"
-- dir "C:\Program Files (x86)\Microsoft Visual Studio 14.0"
-- dir "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC"
 - cmd: '"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall" x64'
 - cl
 
