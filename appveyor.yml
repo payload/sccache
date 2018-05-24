@@ -20,11 +20,9 @@ install:
 - ninja --version || choco install ninja
 #
 - dir "C:\Program Files (x86)"
-- dir "C:\Program Files (x86)\Microsoft Visual Studio"
-- dir "C:\Program Files (x86)\Microsoft Visual Studio\2015"
-- dir "C:\Program Files (x86)\Microsoft Visual Studio\2015\Community"
-- dir "C:\Program Files (x86)\Microsoft Visual Studio\2015\Community\VC"
-- cmd: '"C:\Program Files (x86)\Microsoft Visual Studio\2015\Community\VC\Auxiliary\Build\vcvarsall" x64'
+- dir "C:\Program Files (x86)\Microsoft Visual Studio 14.0"
+- dir "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC"
+- cmd: '"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall" x64'
 - cl
 
 environment:
