@@ -20,7 +20,7 @@ install:
 - choco install ninja
 - ninja --version
 #
-- "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall" amd64
+- cmd: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall" amd64
 
 environment:
   RUST_BACKTRACE: 1
