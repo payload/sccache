@@ -17,11 +17,9 @@ install:
 #
 - cmake --version
 #
-- choco install ninja
-- ninja --version
+- ninja --version || choco install ninja
 #
-- set PATH="C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build";%PATH%
-- vcvarsall x64
+- cmd: '"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\vcvarsall" x64'
 - cl
 
 environment:
