@@ -20,8 +20,8 @@ install:
 - choco install ninja
 - ninja --version
 #
-- set PATH="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\";%PATH%
-- vcvarsall amd64
+- set PATH="C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build";%PATH%
+- vcvarsall x64
 - cl
 
 environment:
