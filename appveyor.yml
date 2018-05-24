@@ -14,11 +14,17 @@ install:
 - set PATH=C:\Users\appveyor\.cargo\bin;%PATH%
 - rustc -V
 - cargo -V
+#
+- cmake --version
+#
+- choco install ninja
+- ninja --version
 
 environment:
   RUST_BACKTRACE: 1
 
 build_script:
+- cmd: cd tests && cd test-cmake && cmake . -G Ninja -DCMAKE_CXX_COMPILER=cl.exe -DCMAKE_C_COMPILER=cl.exe && cmake --build .
 - cmd: cargo build %RELEASE%
 
 test_script:
