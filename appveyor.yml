@@ -15,8 +15,11 @@ install:
 - rustc -V
 - cargo -V
 
+environment:
+  RUST_BACKTRACE: 1
+
 build_script:
-- cmd: cargo build %RELEASE% --verbose --features="all-windows %EXTRA_FEATURES%"
+- cmd: cargo build %RELEASE% --features="all-windows %EXTRA_FEATURES%"
 
 test_script:
 - cmd: cargo test --all %RELEASE% --verbose --features="all-windows %EXTRA_FEATURES%"
