@@ -19,7 +19,7 @@ install:
 #
 - ninja --version || choco install ninja
 #
-- cmd: '"C:\Program Files (x86)\Microsoft Visual Studio\2015\Community\VC\vcvarsall" x64'
+- cmd: '"C:\Program Files (x86)\Microsoft Visual Studio\2015\Community\VC\Auxiliary\Build\vcvarsall" x64'
 - cl
 
 environment:
