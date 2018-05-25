@@ -68,6 +68,7 @@ directories = "0.8.4"
 assert_cli = "0.5"
 cc = "1.0"
 itertools = "0.7"
+testutils = { path = "testutils" }
 
 [target.'cfg(unix)'.dependencies]
 daemonize = "0.2.3"
@@ -79,7 +80,7 @@ winapi = "0.2"
 mio-named-pipes = "0.1"
 
 [features]
-default = ["s3"]
+default = ["chrono"]
 all = ["redis", "s3", "memcached", "gcs", "azure"]
 # gcs requires openssl, which is a pain on Windows.
 all-windows = ["redis", "s3", "memcached", "azure"]
