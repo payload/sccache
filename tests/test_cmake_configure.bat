@@ -6,6 +6,7 @@ set vcvarsall_15P="C:\Program Files (x86)\Microsoft Visual Studio\2017\Professio
 set vcvarsall_15E="C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
 
 cd test-cmake
+rmdir /s/q build
 mkdir build
 cd build
 
@@ -24,6 +25,7 @@ set PATH=%CL_EXE_DIR%;%PATH%
 where cl
 echo %PATH%
 
+rmdir *
 cmake .. -G Ninja -DCMAKE_CXX_COMPILER=cl.exe -DCMAKE_C_COMPILER=cl.exe
 
 cd ..

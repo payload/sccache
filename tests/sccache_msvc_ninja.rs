@@ -1,4 +1,3 @@
-extern crate assert_cli;
 extern crate testutils;
 
 use std::env;
@@ -6,14 +5,15 @@ use std::fs;
 use std::path::{Path};
 use std::process::{Command};
 
-use assert_cli::{Assert, Environment};
 use testutils::{find_sccache_binary};
 
 // - cmd: cd tests\test-cmake && cmake . -G Ninja -DCMAKE_CXX_COMPILER=cl.exe -DCMAKE_C_COMPILER=cl.exe && cmake --build .
 #[test]
 fn test_cmake_configure() {
+    let mut here = std::env::current_dir().unwrap();
     let here_rel = Path::new(file!()).parent().unwrap();
-    let here = fs::canonicalize(here_rel).unwrap();
+    here.push(here_rel);
+    
     let cl_exe = here.join("cl.exe");
     let sccache_path = find_sccache_binary();
     let sccache = sccache_path.to_str().unwrap();
@@ -37,7 +37,7 @@ fn test_cmake_configure() {
     Command::new("cmd")
         .args(&["/C", "test_cmake_configure.bat"])
         .current_dir("tests")
-        .env("CL_EXE_DIR", here)
+        .env("CL_EXE_DIR", &here)
         .status()
         .unwrap();
 
@@ -46,11 +46,10 @@ fn test_cmake_configure() {
         .status()
         .unwrap();
 
-
     Command::new("cmd")
         .args(&["/C", "test_cmake_configure.bat"])
         .current_dir("tests")
-        .env("CL_EXE_DIR", here)
+        .env("CL_EXE_DIR", &here)
         .status()
         .unwrap();
 
