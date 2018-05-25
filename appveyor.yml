@@ -26,11 +26,10 @@ environment:
   RUST_BACKTRACE: 1
 
 build_script:
-- cmd: cd tests && cd test-cmake && cmake . -G Ninja -DCMAKE_CXX_COMPILER=cl.exe -DCMAKE_C_COMPILER=cl.exe && cmake --build .
 - cmd: cargo build %RELEASE%
 
 test_script:
-- cmd: cargo test --all %RELEASE% --verbose
+- cmd: cargo test cmake %RELEASE% --verbose
 
 for:
 
