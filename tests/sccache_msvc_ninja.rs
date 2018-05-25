@@ -17,6 +17,7 @@ fn test_cmake_configure() {
     let cl_exe = here.join("cl.exe");
     let sccache_path = find_sccache_binary();
     let sccache = sccache_path.to_str().unwrap();
+    
     Command::new(sccache)
         .arg("--stop-server")
         .output()
@@ -32,7 +33,20 @@ fn test_cmake_configure() {
 
     fs::hard_link(sccache, cl_exe)
         .unwrap_or_default();
-    
+
+    Command::new("cmd")
+        .args(&["/C", "test_cmake_configure.bat"])
+        .current_dir("tests")
+        .env("CL_EXE_DIR", here)
+        .status()
+        .unwrap();
+
+    Command::new(sccache)
+        .arg("--show-stats")
+        .status()
+        .unwrap();
+
+
     Command::new("cmd")
         .args(&["/C", "test_cmake_configure.bat"])
         .current_dir("tests")

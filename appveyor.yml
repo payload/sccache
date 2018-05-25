@@ -29,7 +29,7 @@ build_script:
 - cmd: cargo build %RELEASE%
 
 test_script:
-- cmd: cargo test cmake %RELEASE% --verbose
+- cmd: cargo test cmake %RELEASE% --verbose -- --nocapture
 
 for:
 
