@@ -60,7 +60,6 @@ extern crate num_cpus;
 extern crate number_prefix;
 #[cfg(feature = "openssl")]
 extern crate openssl;
-extern crate ring;
 #[cfg(feature = "redis")]
 extern crate redis;
 extern crate regex;
@@ -68,6 +67,7 @@ extern crate retry;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate sha2;
 extern crate strip_ansi_escapes;
 extern crate tempdir;
 extern crate tempfile;

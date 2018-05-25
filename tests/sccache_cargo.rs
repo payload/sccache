@@ -37,12 +37,13 @@ fn test_rust_cargo() {
         .init());
     let cargo = env!("CARGO");
     debug!("cargo: {}", cargo);
-    let sccache = find_sccache_binary();
+    let sccache_path = find_sccache_binary();
+    let sccache = sccache_path.to_str().unwrap();
     debug!("sccache: {:?}", sccache);
     let crate_dir = Path::new(file!()).parent().unwrap().join("test-crate");
     // Ensure there's no existing sccache server running.
     trace!("sccache --stop-server");
-    stop(&sccache);
+    stop(&sccache_path);
     // Create a temp directory to use for the disk cache.
     let tempdir = TempDir::new("sccache_test_rust_cargo").unwrap();
     let cache_dir = tempdir.path().join("cache");
@@ -52,7 +53,7 @@ fn test_rust_cargo() {
     let env = Environment::inherit().insert("SCCACHE_DIR", &cache_dir);
     // Start a new sccache server.
     trace!("sccache --start-server");
-    Assert::command(&[&sccache.to_string_lossy()])
+    Assert::command(&[sccache])
         .with_args(&["--start-server"]).with_env(env).succeeds().unwrap();
     // `cargo clean` first, just to be sure there's no leftover build objects.
     let env = Environment::inherit()
@@ -80,10 +81,10 @@ fn test_rust_cargo() {
     a.unwrap();
     // Now get the stats and ensure that we had a cache hit for the second build.
     trace!("sccache --show-stats");
-    Assert::command(&[&sccache.to_string_lossy()])
+    Assert::command(&[sccache])
         .with_args(&["--show-stats", "--stats-format=json"])
         .stdout().contains(r#""cache_hits":1"#).succeeds().execute()
         .expect("Should have had 1 cache hit");
     trace!("sccache --stop-server");
-    stop(&sccache);
+    stop(&sccache_path);
 }

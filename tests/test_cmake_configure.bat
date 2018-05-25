@@ -5,9 +5,11 @@ set vcvarsall_15C="C:\Program Files (x86)\Microsoft Visual Studio\2017\Community
 set vcvarsall_15P="C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Auxiliary\Build\vcvarsall.bat"
 set vcvarsall_15E="C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
 
-where /Q cl
-if %errorlevel% EQU 0 ( rem
-) else if exist %vcvarsall_15E% ( %vcvarsall_15E% x64
+cd test-cmake
+mkdir build
+cd build
+
+if        exist %vcvarsall_15E% ( call %vcvarsall_15E% x64
 ) else if exist %vcvarsall_15P% ( %vcvarsall_15P% x64
 ) else if exist %vcvarsall_15C% ( %vcvarsall_15C% x64
 ) else if exist %vcvarsall_14% ( %vcvarsall_14% x64
@@ -17,5 +19,12 @@ if %errorlevel% EQU 0 ( rem
     exit /b -1
 )
 
-cd test-cmake
-cmake . -G Ninja -DCMAKE_CXX_COMPILER=cl.exe -DCMAKE_C_COMPILER=cl.exe
+set PATH=%CL_EXE_DIR%;%PATH%
+
+where cl
+echo %PATH%
+
+cmake .. -G Ninja -DCMAKE_CXX_COMPILER=cl.exe -DCMAKE_C_COMPILER=cl.exe
+
+cd ..
+cd ..

@@ -4,4 +4,6 @@ version = "0.1.0"
 authors = ["Gilbert Röhrbein <gilbert@ifsr.de>"]
 
 [dependencies]
+assert_cli = "0.6"
 log = "0.3.6"
+tempfile = "3.0.2"
